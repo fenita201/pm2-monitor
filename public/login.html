@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - PM2 Dashboard</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f0f2f5;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .login-card {
+            background: #fff;
+            width: 100%;
+            max-width: 400px;
+            padding: 40px 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .icon-header {
+            width: 70px;
+            height: 70px;
+            background-color: #e3f2fd; /* Biru muda soft */
+            color: #007bff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+            font-size: 30px;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+
+        p.subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            position: relative;
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+            margin-left: 5px;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px 15px 14px 45px; /* Padding kiri lebih besar untuk ikon */
+            border: 2px solid #f0f0f0;
+            border-radius: 12px;
+            background-color: #f9f9f9;
+            font-family: inherit;
+            font-size: 14px;
+            color: #333;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input:focus {
+            border-color: #007bff;
+            background-color: #fff;
+            box-shadow: 0 0 0 4px rgba(0, 123, 255, 0.1);
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-weight: 600;
+            font-family: inherit;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        button:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+
+        .error-msg {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-top: 20px;
+            display: none; /* Tersembunyi default */
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="icon-header">
+            <i class="fa-solid fa-server"></i>
+        </div>
+        
+        <h2>Selamat Datang</h2>
+        <p class="subtitle">Silakan masukkan akses server</p>
+
+        <div class="input-group">
+            <label for="password">Password Akses</label>
+            <div class="input-wrapper">
+                <i class="fa-solid fa-lock"></i>
+                <input type="password" id="password" placeholder="Masukan password..." onkeyup="if(event.key === 'Enter') login()">
+            </div>
+        </div>
+
+        <button onclick="login()" id="btnLogin">Masuk Dashboard</button>
+
+        <div class="error-msg" id="errorMsg">
+            <i class="fa-solid fa-circle-exclamation"></i> Password salah, coba lagi!
+        </div>
+    </div>
+
+    <script>
+        async function login() {
+            const passwordInput = document.getElementById('password');
+            const btn = document.getElementById('btnLogin');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            // Animasi Loading Tombol
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Memproses...';
+            btn.disabled = true;
+            errorMsg.style.display = 'none';
+
+            try {
+                const res = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: passwordInput.value })
+                });
+
+                const data = await res.json();
+                
+                if (data.success) {
+                    // Sukses, redirect ke dashboard
+                    window.location.href = '/'; 
+                } else {
+                    // Gagal
+                    errorMsg.style.display = 'flex';
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                    passwordInput.value = ''; // Kosongkan input
+                    passwordInput.focus();
+                }
+            } catch (err) {
+                alert("Terjadi kesalahan koneksi");
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
