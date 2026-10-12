@@ -3,3 +3,7 @@ node_modules/
 .env
 *.log
 .DS_Store
+config/pm2-targets.json
+config/*.tmp
+cookies.txt
+test-artifacts/

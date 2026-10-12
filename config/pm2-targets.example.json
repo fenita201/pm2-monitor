@@ -1,0 +1,13 @@
+{
+  "targets": [
+    {
+      "user": "appuser",
+      "baseUrl": "http://127.0.0.1:8888",
+      "adminPasswordEnv": "APPUSER_DASHBOARD_PASSWORD"
+    },
+    {
+      "user": "worker",
+      "baseUrl": "http://127.0.0.1:8889"
+    }
+  ]
+}

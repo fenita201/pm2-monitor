@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --bg: #f8fafc; --card: #ffffff; --primary: #4776E6; --text: #1e293b; --border: #e2e8f0; --danger: #ff7675; --success: #00b894; }
+        :root { --bg: #f8fafc; --card: #ffffff; --primary: #4776E6; --text: #1e293b; --border: #e2e8f0; --danger: #ff7675; --success: #00b894; --warning: #fdcb6e; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); padding: 20px; padding-bottom: 80px; }
 
@@ -45,6 +45,24 @@
         
         .login-box { width: 320px; text-align: center; }
         .login-box input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; margin: 15px 0; outline: none; text-align: center; }
+        [hidden] { display: none !important; }
+        .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 15px; }
+        .toolbar .btn { flex: initial; }
+        select, .target-form input { padding: 10px; border: 1px solid var(--border); border-radius: 10px; font: inherit; width: 100%; }
+        .toolbar select { width: auto; max-width: 60%; }
+        .notice { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 12px; font-size: 12px; }
+        .error { color: #b42318; }
+        .user-label { font-size: 11px; color: #64748b; margin-top: 4px; }
+        .target-form { display: grid; gap: 12px; margin-top: 15px; }
+        .target-form label { font-size: 12px; display: grid; gap: 4px; }
+        .target-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .target-row .btn-group { margin-top: 8px; }
+        .target-dialog { max-height: 90vh; overflow-y: auto; }
+        button:disabled { opacity: .55; cursor: not-allowed; }
+        .card-header { gap: 12px; }
+        .card-header > div { min-width: 0; overflow-wrap: anywhere; }
+        .online-badge { flex-shrink: 0; }
+        .target-row { overflow-wrap: anywhere; }
     </style>
 </head>
 <body>
@@ -77,20 +95,45 @@
         </div>
     </div>
 
+    <div id="toolbar" class="toolbar" hidden>
+        <select id="userFilter" aria-label="Filter by Linux user"><option value="">All users</option></select>
+        <button id="manageTargets" class="btn btn-info" hidden>Manage targets</button>
+    </div>
+    <div id="pageError" class="notice error" role="alert" hidden></div>
+    <div id="targetStatus" aria-live="polite"></div>
     <div id="app-list"></div>
 
-    <div class="modal" id="loginModal">
-        <div class="modal-box login-box" onclick="event.stopPropagation()">
-            <i class="fa-solid fa-shield-halved" style="font-size: 40px; color: var(--primary);"></i>
-            <h3 style="margin-top: 15px;">Admin Login</h3>
-            <input type="password" id="adminPass" placeholder="Password Admin">
-            <button onclick="submitLogin()" class="btn btn-info" style="width: 100%;">Masuk</button>
-            <button onclick="closeLogin()" style="background:none; border:none; color:#aaa; font-size:11px; margin-top:10px; cursor:pointer;">Batal</button>
+    <div class="modal" id="targetsModal">
+        <div class="modal-box target-dialog">
+            <h3>Manage targets</h3>
+            <div id="targetsList"></div>
+            <form id="targetForm" class="target-form">
+                <label>Linux username<input id="targetUser" required autocomplete="off" maxlength="64" placeholder="appuser"></label>
+                <label>Dashboard host / URL<input id="targetHost" type="url" required value="http://127.0.0.1"></label>
+                <label>Port<input id="targetPort" type="number" required min="1" max="65535" value="8888"></label>
+                <label>Dashboard admin password<input id="targetPassword" type="password" autocomplete="new-password" maxlength="1024" placeholder="Optional for read-only access"></label>
+                <div id="targetMessage" role="status"></div>
+                <div class="btn-group">
+                    <button id="saveTarget" type="submit" class="btn btn-start">Check & add</button>
+                    <button id="resetTarget" type="button" class="btn btn-restart">New target</button>
+                    <button id="closeTargets" type="button" class="btn btn-restart">Close</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <div class="modal" id="infoModal" onclick="closeInfo()">
-        <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal" id="loginModal">
+        <div class="modal-box login-box">
+            <i class="fa-solid fa-shield-halved" style="font-size: 40px; color: var(--primary);"></i>
+            <h3 style="margin-top: 15px;">Admin Login</h3>
+            <input type="password" id="adminPass" placeholder="Password Admin">
+            <button id="submitLogin" class="btn btn-info" style="width: 100%;">Login</button>
+            <button id="closeLogin" style="background:none; border:none; color:#aaa; font-size:11px; margin-top:10px; cursor:pointer;">Cancel</button>
+        </div>
+    </div>
+
+    <div class="modal" id="infoModal">
+        <div class="modal-box">
             <h3 id="detTitle" style="margin-bottom:15px">Detail</h3>
             <div style="height:180px;"><canvas id="detChart"></canvas></div>
             <div class="console" id="detLogOut">...</div>
@@ -98,108 +141,6 @@
         </div>
     </div>
 
-    <script>
-        let isAdmin = false; let activeId = null; let detChart = null; 
-        let hist = { cpu: [], mem: [] }; let appHist = {}; let miniCharts = {};
-
-        function initMiniCharts() {
-            const opt = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, beginAtZero: true } }, elements: { line: { tension: 0.4 }, point: { radius: 0 } } };
-            miniCharts.cpu = new Chart(document.getElementById('cpuMiniChart'), { type: 'line', data: { labels: Array(10).fill(''), datasets: [{ data: [], borderColor: '#ff7675', borderWidth: 2, fill: false }] }, options: opt });
-            miniCharts.mem = new Chart(document.getElementById('memMiniChart'), { type: 'line', data: { labels: Array(10).fill(''), datasets: [{ data: [], borderColor: '#00b894', borderWidth: 2, fill: false }] }, options: opt });
-        }
-
-        async function fetchData() {
-            try {
-                const r = await fetch('/api/status'); const data = await r.json();
-                isAdmin = data.isAdmin;
-                
-                document.getElementById('authArea').innerHTML = isAdmin ? 
-                    `<button onclick="location.href='/auth/logout'" style="background:var(--danger); color:white; border:none; width:40px; height:40px; border-radius:12px; cursor:pointer;"><i class="fa-solid fa-power-off"></i></button>` : 
-                    `<div style="font-size:11px; font-weight:700; color:#94a3b8; cursor:pointer;" onclick="showLogin()"><i class="fa-solid fa-lock"></i> Login</div>`;
-
-                document.getElementById('currentDate').innerText = new Date().toLocaleDateString('id-ID', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
-                
-                let ramP = ((data.serverStats.totalMem - data.serverStats.freeMem) / data.serverStats.totalMem * 100).toFixed(1);
-                let cpuP = (data.serverStats.load * 10).toFixed(1);
-
-                document.getElementById('cpuVal').innerText = cpuP + "%"; document.getElementById('cpuBar').style.width = cpuP + "%";
-                document.getElementById('memVal').innerText = ramP + "%"; document.getElementById('memBar').style.width = ramP + "%";
-                document.getElementById('diskVal').innerText = data.serverStats.disk.percent + "%"; document.getElementById('diskBar').style.width = data.serverStats.disk.percent + "%";
-                document.getElementById('diskDetail').innerText = `${data.serverStats.disk.used} / ${data.serverStats.disk.total} GB`;
-
-                hist.cpu.push(cpuP); hist.mem.push(ramP);
-                if(hist.cpu.length > 10) { hist.cpu.shift(); hist.mem.shift(); }
-                miniCharts.cpu.data.datasets[0].data = hist.cpu; miniCharts.cpu.update();
-                miniCharts.mem.data.datasets[0].data = hist.mem; miniCharts.mem.update();
-
-                data.processes.forEach(p => {
-                    if(!appHist[p.id]) appHist[p.id] = { r: [], c: [] };
-                    appHist[p.id].r.push(parseFloat(p.memory)); appHist[p.id].c.push(p.cpu);
-                    if(appHist[p.id].r.length > 20) { appHist[p.id].r.shift(); appHist[p.id].c.shift(); }
-                });
-
-                renderList(data.processes);
-                if(activeId !== null) updateDetChart();
-            } catch(e) {}
-        }
-
-        function renderList(apps) {
-            const container = document.getElementById('app-list'); container.innerHTML = '';
-            apps.forEach(p => {
-                const online = p.status === 'online';
-                const locked = p.name === 'pm2-dashboard';
-                const div = document.createElement('div'); div.className = 'app-card';
-                
-                let btns = `<button class="btn btn-info" style="flex:1" onclick="openInfo(${p.id}, '${p.name}')"><i class="fa-solid fa-chart-line"></i> View Logs</button>`;
-                if (isAdmin) {
-                    btns = `
-                        ${locked ? `<button class="btn btn-disabled"><i class="fa-solid fa-lock"></i> Locked</button>` : `<button class="btn ${online?'btn-stop':'btn-start'}" onclick="doAction('${online?'stop':'restart'}', ${p.id})"><i class="fa-solid fa-${online?'stop':'play'}"></i> ${online?'Stop':'Start'}</button>`}
-                        <button class="btn btn-restart" onclick="doAction('restart', ${p.id})"><i class="fa-solid fa-rotate"></i> Restart</button>
-                        <button class="btn btn-info" onclick="openInfo(${p.id}, '${p.name}')"><i class="fa-solid fa-chart-line"></i> Info</button>
-                    `;
-                }
-
-                div.innerHTML = `
-                    <div class="card-header"><span style="font-weight:700;">${p.name}</span><span class="online-badge" style="background:${online?'#e8f5e9':'#ffebee'}; color:${online?'#2e7d32':'#c62828'}">${p.status}</span></div>
-                    <div class="app-stats-bar">
-                        <span><i class="fa-solid fa-memory"></i> ${p.memory} MB</span><span><i class="fa-solid fa-microchip"></i> ${p.cpu}%</span>
-                    </div>
-                    <div class="btn-group">${btns}</div>`;
-                container.appendChild(div);
-            });
-        }
-
-        function showLogin() { document.getElementById('loginModal').style.display='flex'; }
-        function closeLogin() { document.getElementById('loginModal').style.display='none'; }
-        async function submitLogin() {
-            const r = await fetch('/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:document.getElementById('adminPass').value}) });
-            if(r.ok) { closeLogin(); fetchData(); } else alert("Password Salah!");
-        }
-
-        function openInfo(id, name) {
-            activeId = id; document.getElementById('detTitle').innerText = name;
-            document.getElementById('infoModal').style.display = 'flex';
-            const area = document.getElementById('modalActionArea');
-            if(isAdmin) {
-                const locked = name === 'pm2-dashboard';
-                area.innerHTML = `<button onclick="renameApp()" class="btn btn-restart" style="flex:1">Rename</button> ${locked?'':`<button onclick="deleteApp()" class="btn btn-stop" style="flex:1">Remove</button>`} <button onclick="closeInfo()" class="btn" style="background:#eee; flex:1">Close</button>`;
-            } else area.innerHTML = `<button onclick="closeInfo()" class="btn" style="background:#eee; width:100%">Close</button>`;
-            initDetChart(); fetchLogs(id);
-        }
-
-        function initDetChart() {
-            const ctx = document.getElementById('detChart').getContext('2d');
-            if(detChart) detChart.destroy();
-            detChart = new Chart(ctx, { type:'line', data:{labels:Array(20).fill(''), datasets:[{label:'RAM', data:[], borderColor:'#4776E6', backgroundColor:'rgba(71,118,230,0.1)', fill:true, tension:0.4, pointRadius:0},{label:'CPU', data:[], borderColor:'#ff7675', tension:0.4, pointRadius:0}]}, options:{responsive:true, maintainAspectRatio:false, animation:false, scales:{x:{display:false}, y:{beginAtZero:true}}} });
-        }
-
-        function updateDetChart() { if(!appHist[activeId] || !detChart) return; detChart.data.datasets[0].data = appHist[activeId].r; detChart.data.datasets[1].data = appHist[activeId].c; detChart.update(); }
-        async function fetchLogs(id) { if(activeId !== id) return; const r = await fetch(`/api/logs/${id}`); const d = await r.json(); const box = document.getElementById('detLogOut'); box.innerText = d.out.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, ''); box.scrollTop = box.scrollHeight; setTimeout(()=>fetchLogs(id), 3000); }
-        function closeInfo() { document.getElementById('infoModal').style.display='none'; activeId=null; }
-        async function doAction(a, id) { await fetch(`/api/${a}/${id}`, {method:'POST'}); fetchData(); }
-        function formatUptime(ms) { if(!ms) return '-'; const s = Math.floor((Date.now()-ms)/1000); return s<60 ? s+'s' : s<3600 ? Math.floor(s/60)+'m' : Math.floor(s/3600)+'h'; }
-
-        initMiniCharts(); setInterval(fetchData, 2000); fetchData();
-    </script>
+    <script src="/app.js" defer></script>
 </body>
 </html>
