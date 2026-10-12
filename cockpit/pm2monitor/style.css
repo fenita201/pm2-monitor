@@ -4,3 +4,5 @@ h1 { margin-top: 0; font-size: 24px; }
 p { line-height: 1.5; overflow-wrap: anywhere; }
 a { display: inline-block; padding: 12px 18px; border-radius: 8px; background: #4776e6; color: white; text-decoration: none; }
 [hidden] { display: none !important; }
+.dashboard-card { padding: 18px 0; border-top: 1px solid #e2e8f0; }
+h2 { font-size: 18px; margin: 0; }

@@ -172,14 +172,14 @@ Kết nối local dùng các RPC method của dependency PM2 đã khóa trong `p
 
 ## Link PM2 Monitor trong Cockpit
 
-Plugin redirect là năm file tĩnh trong `cockpit/pm2monitor/`, thêm mục **PM2 Monitor** dưới Tools. Bấm **Open PM2 Monitor** để mở dashboard ở tab mới; login Cockpit và admin dashboard vẫn riêng. Plugin không gọi PM2, không thêm Node process, không tự start/restart dashboard.
+Plugin redirect là năm file tĩnh trong `cockpit/pm2monitor/`, thêm mục **PM2 Monitor** dưới Tools. Trang này liệt kê dashboard của user hiện tại trước, sau đó là các dashboard trong cấu hình targets nếu có. Bấm **Open PM2 Monitor** trên từng dashboard để mở tab mới; login Cockpit và admin dashboard vẫn riêng. Plugin không gọi PM2, không thêm Node process, không tự start/restart dashboard.
 
 Cài riêng cho user đang chạy lệnh, không dùng sudo:
 
 ```bash
 # Shell của ploi, trong checkout ploi:
 cd /home/ploi/Desktop/pm2-monitor
-npm run cockpit:install -- --port 8877
+npm run cockpit:install
 cockpit-bridge --packages
 ```
 
@@ -189,18 +189,24 @@ Muốn lamson thấy link của riêng mình, chạy dưới shell lamson, với
 
 ```bash
 cd /home/lamson/pm2-monitor
-npm run cockpit:install -- --port 8888
+npm run cockpit:install
 ```
 
-Link mặc định dùng hostname bạn đang mở Cockpit và port đã chọn. Ví dụ vào Cockpit qua `https://server-ip:9090` thì ploi mở dashboard `http://server-ip:8877`. `127.0.0.1` trong URL browser trỏ máy browser, không phải server ở xa. Nếu đi qua domain/reverse proxy/tunnel và port không truy cập trực tiếp được, cấu hình URL dashboard thực tế:
+Installer đọc `.env` từ project root, không phụ thuộc cwd. Port dashboard của user chạy installer lấy từ `--port` nếu có, nếu không từ biến `PORT` kế thừa hoặc `PORT` trong `.env`, cuối cùng mặc định `8877`. Ví dụ `.env` của lamson có `PORT=8888` thì chỉ cần chạy `npm run cockpit:install`, không cần nhập lại port.
+
+Các link khác lấy từ `PM2_MONITOR_TARGETS_FILE` trong môi trường/`.env`, hoặc `config/pm2-targets.json` mặc định. File không có => chỉ tạo link dashboard của user hiện tại; có file => thêm các entry theo thứ tự `targets`. File sai schema/JSON => báo lỗi trước khi ghi plugin. Installer đọc file này nếu tồn tại kể cả dashboard chạy single-user; quy tắc single-user không đọc targets của backend vẫn giữ nguyên.
+
+Link mặc định dùng hostname bạn đang mở Cockpit và port đã chọn. Ví dụ vào Cockpit qua `https://server-ip:9090` thì ploi mở dashboard `http://server-ip:8877`. Các target `http://127.0.0.1:8888`, `http://localhost:8888` hoặc IPv6 loopback cũng được đổi sang hostname Cockpit, giữ nguyên scheme và port. URL của target ở host khác được giữ nguyên. `127.0.0.1` trong URL browser trỏ máy browser, không phải server ở xa. Nếu đi qua domain/reverse proxy/tunnel và port không truy cập trực tiếp được, cấu hình URL dashboard hiện tại bằng `--url`, và cấu hình `baseUrl` của target bằng địa chỉ truy cập được từ browser:
 
 ```bash
 npm run cockpit:install -- --url https://dashboard.example.com/
 # Xem trước, không ghi file:
-npm run cockpit:install -- --port 8877 --dry-run
+npm run cockpit:install -- --dry-run
 ```
 
-Cài lại bằng lệnh trên sẽ cập nhật năm file plugin và URL/port. Không chép `.env`, password hay file targets vào thư mục Cockpit. Dashboard cần đang chạy và URL phải truy cập được từ browser. Ẩn link theo user không chặn truy cập URL trực tiếp: status/log của dashboard vẫn public theo mô hình đã chọn.
+Cài lại bằng lệnh trên sẽ cập nhật năm file plugin và danh sách link. Cấu hình được chụp tại thời điểm cài: đổi `.env` hoặc thêm/sửa/xóa target trên dashboard thì chạy lại installer để cập nhật link Cockpit. `--port`/`--url` chỉ ghi đè dashboard của user hiện tại, không đổi các link target.
+
+Chỉ username và dữ liệu URL/port được đưa vào `config.js` của plugin; không chép `.env`, password, tên biến credential hay file targets vào thư mục Cockpit. Dashboard cần đang chạy và URL phải truy cập được từ browser. Mỗi user thấy link của mình và những target đã khai báo trong checkout của mình; việc có link không cấp quyền thao tác. Ẩn link theo user không chặn truy cập URL trực tiếp: status/log của dashboard vẫn public theo mô hình đã chọn.
 
 ## Biểu đồ và bộ nhớ
 

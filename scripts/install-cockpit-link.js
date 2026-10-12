@@ -2,28 +2,26 @@
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
+const { readCockpitLinks, dashboardPort, dashboardUrl } = require('../lib/cockpit-links');
 
 async function main() {
     const args = process.argv.slice(2);
-    let port = 8877, url = null, dryRun = false;
+    const overrides = {};
+    let dryRun = false;
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--help') {
             console.log('Usage: npm run cockpit:install -- [--port 8877] [--url https://dashboard.example.com/] [--dry-run]');
             console.log('Installs a static dashboard link only for the Linux user running this command. No sudo or service restart.');
+            console.log('Own dashboard comes first (PORT from .env); other links come from PM2_MONITOR_TARGETS_FILE or config/pm2-targets.json if present.');
             return;
         }
         if (args[i] === '--dry-run') { dryRun = true; continue; }
         if (args[i] === '--port') {
             const value = args[++i];
-            if (!value || !/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 65535) throw new Error('Port must be between 1 and 65535');
-            port = Number(value); continue;
+            overrides.port = dashboardPort(value); continue;
         }
         if (args[i] === '--url') {
-            try {
-                const parsed = new URL(args[++i]);
-                if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error();
-                url = parsed.href;
-            } catch { throw new Error('Use an HTTP(S) dashboard URL without embedded credentials'); }
+            overrides.url = dashboardUrl(args[++i]);
             continue;
         }
         throw new Error(`Unknown argument: ${args[i]}`);
@@ -34,10 +32,15 @@ async function main() {
     if (!path.isAbsolute(dataHome)) throw new Error('XDG_DATA_HOME must be an absolute path');
     const destination = path.join(dataHome, 'cockpit/pm2monitor');
     const source = path.resolve(__dirname, '../cockpit/pm2monitor');
+    const { links, targetsFile, hasTargetsFile } = await readCockpitLinks(path.resolve(__dirname, '..'), identity.username, overrides);
     const files = ['manifest.json', 'index.html', 'style.css', 'link.js', 'config.js'];
     console.log(`User: ${identity.username}`);
     console.log(`Install: ${destination}`);
-    console.log(`Dashboard: ${url || `http://<Cockpit hostname>:${port}/`}`);
+    for (const [index, link] of links.entries()) {
+        const address = link.useCockpitHost ? link.url.replace(new URL(link.url).hostname, '<Cockpit hostname>') : link.url || `http://<Cockpit hostname>:${link.port}/`;
+        console.log(`${index === 0 ? 'Own dashboard' : 'Additional dashboard'} (${link.user}): ${address}`);
+    }
+    console.log(`Targets: ${targetsFile}${hasTargetsFile ? '' : ' (not found; own dashboard only)'}`);
     console.log(`Create/update: ${files.join(', ')}`);
     if (dryRun) { console.log('Dry run: no files written.'); return; }
     const existing = await fs.lstat(destination).catch(err => { if (err.code !== 'ENOENT') throw err; });
@@ -50,7 +53,7 @@ async function main() {
     await fs.mkdir(destination, { recursive: true, mode: 0o755 });
     for (const name of files) {
         const content = name === 'config.js'
-            ? `'use strict';\nwindow.pm2MonitorLink = ${JSON.stringify({ port, url })};\n`
+            ? `'use strict';\nwindow.pm2MonitorLink = ${JSON.stringify({ links })};\n`
             : await fs.readFile(path.join(source, name));
         await fs.writeFile(path.join(destination, name), content, { mode: 0o644 });
     }
