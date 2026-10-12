@@ -17,7 +17,9 @@
     "start": "node server.js",
     "test": "node --test test/*.test.js",
     "check-config": "node scripts/check-config.js",
+    "cockpit:install": "node scripts/install-cockpit-link.js",
     "test:browser": "node test/browser.js",
+    "test:ecosystem": "node test/ecosystem-smoke.js",
     "test:smoke": "node test/smoke-pm2.js"
   }
 }

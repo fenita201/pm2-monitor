@@ -79,7 +79,7 @@
 
     <div class="global-grid">
         <div class="monitor-card">
-            <span class="mon-label">CPU Load</span><span class="mon-val" id="cpuVal">0%</span>
+            <span class="mon-label">CPU Usage</span><span class="mon-val" id="cpuVal">0%</span>
             <div class="progress-bg"><div class="progress-fill" id="cpuBar" style="background: var(--danger)"></div></div>
             <div style="height:40px;"><canvas id="cpuMiniChart"></canvas></div>
         </div>
@@ -87,6 +87,7 @@
             <span class="mon-label">RAM Usage</span><span class="mon-val" id="memVal">0%</span>
             <div class="progress-bg"><div class="progress-fill" id="memBar" style="background: var(--success)"></div></div>
             <div style="height:40px;"><canvas id="memMiniChart"></canvas></div>
+            <div id="memDetail" style="font-size: 9px; color: #94a3b8; font-weight: 700;">0 / 0 GB</div>
         </div>
         <div class="monitor-card">
             <span class="mon-label">Disk Space</span><span class="mon-val" id="diskVal">0%</span>

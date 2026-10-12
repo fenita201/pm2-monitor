@@ -1,9 +1,9 @@
 'use strict';
 const path = require('node:path');
-const os = require('node:os');
 const express = require('express');
 const session = require('express-session');
-const checkDiskSpace = require('check-disk-space').default;
+const { makeStats } = require('./lib/stats');
+const { SessionStore } = require('./lib/session-store');
 const { loadConfig } = require('./lib/config');
 const { TargetStore, validateTarget } = require('./lib/targets');
 const { LocalPM2 } = require('./lib/local-pm2');
@@ -11,23 +11,6 @@ const { Manager } = require('./lib/manager');
 const { AppError, processId, validateAction } = require('./lib/errors');
 
 const route = fn => (req, res, next) => Promise.resolve().then(() => fn(req, res)).catch(next);
-function makeStats() {
-    let pending, until = 0;
-    return () => {
-        if (pending && Date.now() < until) return pending;
-        until = Infinity;
-        pending = checkDiskSpace('/').then(disk => ({
-            load: Number(os.loadavg()[0].toFixed(2)),
-            loadPercent: Math.min(100, os.loadavg()[0] / os.cpus().length * 100),
-            totalMem: os.totalmem() / 1073741824, freeMem: os.freemem() / 1073741824,
-            uptime: os.uptime(), disk: {
-                percent: (disk.size - disk.free) / disk.size * 100,
-                used: (disk.size - disk.free) / 1073741824, total: disk.size / 1073741824
-            }
-        })).finally(() => { until = Date.now() + 1500; });
-        return pending;
-    };
-}
 async function createApp(options = {}) {
     const config = options.config || loadConfig();
     const store = options.store || new TargetStore(config);
@@ -37,10 +20,12 @@ async function createApp(options = {}) {
     const stats = options.stats || makeStats();
     const app = express();
     const sessionCookie = `pm2-monitor.${config.uid}.${config.port}`;
+    const sessions = new SessionStore();
     app.disable('x-powered-by');
     app.use(express.json({ limit: '16kb' }));
     app.use(session({
         name: sessionCookie,
+        store: sessions,
         secret: config.sessionSecret, resave: false, saveUninitialized: false,
         cookie: { httpOnly: true, sameSite: 'lax', maxAge: 3600000 }
     }));
@@ -130,7 +115,7 @@ async function createApp(options = {}) {
         const status = err instanceof AppError ? err.status : err.type === 'entity.parse.failed' ? 400 : err.type === 'entity.too.large' ? 413 : 500;
         res.status(status).json({ success: false, message: err instanceof AppError ? err.message : status === 400 ? 'Invalid JSON request' : status === 413 ? 'Request too large' : 'Request failed' });
     });
-    return { app, config, store, manager, close: () => manager.close() };
+    return { app, config, store, manager, close: () => { manager.close(); sessions.close(); } };
 }
 if (require.main === module) {
     require('dotenv').config({ path: path.join(__dirname, '.env') });

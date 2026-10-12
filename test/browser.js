@@ -24,6 +24,16 @@ async function main() {
         await page.goto(single.url);
         await page.waitForSelector('.app-card');
         assert.equal(await page.locator('#toolbar').isVisible(), false);
+        assert.equal(await page.locator('#memDetail').textContent(), '2.0 / 8.0 GB');
+        await page.evaluate(() => renderStats({ cpuUsage: 68, loadPercent: 2, load: .2, totalMem: 8, freeMem: 3, disk: { percent: 20, used: 2, total: 10 } }));
+        assert.equal(await page.locator('#cpuVal').textContent(), '68.0%');
+        assert.equal(await page.locator('#memVal').textContent(), '62.5%');
+        assert.equal(await page.locator('#memDetail').textContent(), '5.0 / 8.0 GB');
+        const animation = await page.evaluate(() => {
+            const chart = Chart.getChart(document.getElementById('cpuMiniChart'));
+            return { duration: chart.options.animation.duration, easing: chart.options.animation.easing, last: chart.data.datasets[0].data.at(-1) };
+        });
+        assert.deepEqual(animation, { duration: 500, easing: 'easeOutQuart', last: 68 });
         assert.equal(await page.locator('.app-card img').count(), 0);
         assert.equal(await page.evaluate(() => window.__xss), undefined);
         assert.equal(await page.getByRole('button', { name: 'Start', exact: true }).count(), 0);

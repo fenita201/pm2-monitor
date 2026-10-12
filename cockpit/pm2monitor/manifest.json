@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "tools": {
+    "index": {
+      "label": "PM2 Monitor",
+      "path": "index.html",
+      "order": 50
+    }
+  }
+}
