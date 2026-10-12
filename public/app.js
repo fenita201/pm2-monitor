@@ -26,14 +26,14 @@ function processUrl(p) { return `/api/processes/${encodeURIComponent(p.targetUse
 function push(history, value, max) { history.push(value); if (history.length > max) history.shift(); }
 function initCharts() {
     if (typeof Chart === 'undefined') return;
-    const options = { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, beginAtZero: true } }, elements: { line: { tension: 0.4 }, point: { radius: 0 } } };
+    const options = { responsive: true, maintainAspectRatio: false, animation: { duration: 500, easing: 'easeOutQuart' }, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, beginAtZero: true } }, elements: { line: { tension: 0.4 }, point: { radius: 0 } } };
     for (const [metric, color] of [['cpu', '#ff7675'], ['mem', '#00b894']]) {
         miniCharts[metric] = new Chart($(`${metric}MiniChart`), { type: 'line', data: { labels: Array(10).fill(''), datasets: [{ data: [], borderColor: color, borderWidth: 2 }] }, options });
     }
 }
 function renderStats(stats) {
     const memory = (stats.totalMem - stats.freeMem) / stats.totalMem * 100;
-    const cpu = Number(stats.loadPercent || 0);
+    const cpu = Number(stats.cpuUsage ?? stats.loadPercent ?? 0);
     $('currentDate').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     for (const [metric, value] of [['cpu', cpu], ['mem', memory]]) {
         $(`${metric}Val`).textContent = `${value.toFixed(1)}%`;
@@ -41,7 +41,8 @@ function renderStats(stats) {
         push(serverHistory[metric], value, 10);
         if (miniCharts[metric]) { miniCharts[metric].data.datasets[0].data = serverHistory[metric]; miniCharts[metric].update(); }
     }
-    $('cpuVal').title = `1-minute load average: ${stats.load}`;
+    $('cpuVal').title = `CPU usage between samples; 1-minute load average: ${stats.load}`;
+    $('memDetail').textContent = `${(stats.totalMem - stats.freeMem).toFixed(1)} / ${Number(stats.totalMem).toFixed(1)} GB`;
     $('diskVal').textContent = `${Number(stats.disk.percent).toFixed(1)}%`;
     $('diskBar').style.width = `${Number(stats.disk.percent)}%`;
     $('diskDetail').textContent = `${Number(stats.disk.used).toFixed(1)} / ${Number(stats.disk.total).toFixed(1)} GB`;
@@ -113,7 +114,11 @@ async function fetchData() {
     })().finally(() => { polling = null; });
     return polling;
 }
-async function poll() { await fetchData(); setTimeout(poll, 2000); }
+async function poll() {
+    const started = performance.now();
+    if (!document.hidden) await fetchData();
+    setTimeout(poll, Math.max(0, 2000 - (performance.now() - started)));
+}
 async function submitLogin() {
     try {
         await request('/auth/login', { method: 'POST', body: JSON.stringify({ password: $('adminPass').value }) });
@@ -153,6 +158,10 @@ function updateDetailChart() {
     detChart.data.datasets[1].data = histories.get(key(active)).c; detChart.update();
 }
 async function fetchLogs(p, generation) {
+    if (document.hidden) {
+        if (generation === logGeneration && active) logTimer = setTimeout(() => fetchLogs(p, generation), 3000);
+        return;
+    }
     try {
         const data = await request(`${processUrl(p)}/logs`);
         if (generation !== logGeneration) return;
@@ -226,4 +235,5 @@ $('manageTargets').addEventListener('click', openTargets);
 $('closeTargets').addEventListener('click', closeTargets);
 $('resetTarget').addEventListener('click', () => { if (!targetSaving) resetTarget(); });
 $('targetForm').addEventListener('submit', saveTarget);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) fetchData(); });
 initCharts(); poll();
