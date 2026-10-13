@@ -1,0 +1,11 @@
+body { font-family: system-ui, sans-serif; padding-bottom: 24px; }
+.cockpit-context { color: #475569; font-size: 13px; margin-bottom: 16px; }
+.login-box input:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+@media (max-width: 480px) {
+    body { padding: 12px; }
+    .server-pill { gap: 12px; padding: 12px; }
+    .btn-group { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+}

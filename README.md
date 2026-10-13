@@ -170,43 +170,76 @@ Log chỉ đọc từ đường dẫn mà đúng PM2 daemon trả về, tối đ
 
 Kết nối local dùng các RPC method của dependency PM2 đã khóa trong `package-lock.json`, chỉ kết nối socket daemon hiện hữu. Không gọi `pm2.connect()`/CLI khi polling. Request có timeout và giới hạn số đang chạy; cache/coalesce ngắn dùng chung cho các browser, target lỗi retry với backoff tối đa 30 giây. Khi nâng dependency PM2 cần chạy lại smoke test vì transport phụ thuộc protocol PM2.
 
-## Link PM2 Monitor trong Cockpit
+## PM2 Monitor trực tiếp trong Cockpit
 
-Plugin redirect là năm file tĩnh trong `cockpit/pm2monitor/`, thêm mục **PM2 Monitor** dưới Tools. Trang này liệt kê dashboard của user hiện tại trước, sau đó là các dashboard trong cấu hình targets nếu có. Bấm **Open PM2 Monitor** trên từng dashboard để mở tab mới; login Cockpit và admin dashboard vẫn riêng. Plugin không gọi PM2, không thêm Node process, không tự start/restart dashboard.
+Mục **PM2 Monitor** dưới Tools hiển thị dashboard ngay trong vùng nội dung Cockpit. Plugin dùng chung HTML/CSS/JavaScript với bản web; installer tạo package từ `public/` và các file tích hợp trong `cockpit/pm2monitor/`. Backend Express vẫn chạy qua PM2, giữ single-user/multi-user và các API hiện có. Plugin không tự start/restart backend, không gọi PM2 CLI và không yêu cầu sudo.
 
-Cài riêng cho user đang chạy lệnh, không dùng sudo:
+Kết nối đi qua `cockpit.http()` của Cockpit: browser → kết nối Cockpit đã đăng nhập → bridge trên server → HTTP backend. `127.0.0.1` là server Cockpit, không phải máy browser. Không cần mở cổng dashboard ra ngoài để dùng plugin; có thể đặt `HOST=127.0.0.1` nếu không cần truy cập web trực tiếp. Installer không tự thay đổi HOST, firewall hay service. Xem [HTTP client của Cockpit](https://docs.cockpit-project.org/cockpit-guide/368/guide/development.html#cockpit-http).
+
+Cài riêng cho đúng Linux user đăng nhập Cockpit, không dùng sudo:
 
 ```bash
-# Shell của ploi, trong checkout ploi:
-cd /home/ploi/Desktop/pm2-monitor
+# Trong checkout của ploi, shell của ploi, với Node/NVM đã nạp:
+npm ci --omit=dev
+npm run cockpit:install -- --dry-run
 npm run cockpit:install
 cockpit-bridge --packages
 ```
 
-Sau đó refresh hoặc logout/login Cockpit bằng ploi. Plugin được cài tại `~/.local/share/cockpit/pm2monitor/` (tôn trọng `XDG_DATA_HOME` nếu có). User khác không thấy plugin này, trừ khi tự cài hoặc máy đã có bản global cùng tên.
+Bên lamson, chạy cùng lệnh trong `/home/lamson/pm2-monitor` bằng shell lamson. Installer đọc `.env` từ project root. Port lấy từ `--port`, rồi `PORT` của môi trường hoặc `.env`, cuối cùng mặc định `8877`. Nếu `.env` lamson có `PORT=8888`, không cần nhập lại port. Package cài tại `~/.local/share/cockpit/pm2monitor/`, tôn trọng `XDG_DATA_HOME` tuyệt đối nếu có. Refresh hoặc logout/login Cockpit để nạp bản mới; user khác cần tự cài trong tài khoản của mình.
 
-Muốn lamson thấy link của riêng mình, chạy dưới shell lamson, với checkout có các file plugin/script mới:
+Backend cũng phải chạy code mới để có `POST /auth/logout` trả JSON. Sau khi cập nhật code, chủ động restart instance đã có bằng đúng user và PM2_HOME:
 
 ```bash
-cd /home/lamson/pm2-monitor
-npm run cockpit:install
+pm2 restart pm2-dashboard --update-env
+# Hoặc nếu instance được quản lý bằng ecosystem:
+pm2 startOrReload ecosystem.config.js --update-env
 ```
 
-Installer đọc `.env` từ project root, không phụ thuộc cwd. Port dashboard của user chạy installer lấy từ `--port` nếu có, nếu không từ biến `PORT` kế thừa hoặc `PORT` trong `.env`, cuối cùng mặc định `8877`. Ví dụ `.env` của lamson có `PORT=8888` thì chỉ cần chạy `npm run cockpit:install`, không cần nhập lại port.
+Đăng nhập Cockpit cho phép mở trang để xem status/log. **Start/stop/restart, rename/delete và quản lý target vẫn yêu cầu mật khẩu ADMIN_PASSWORD của dashboard.** Login Cockpit không cấp session admin dashboard. Session dashboard được giữ trong bộ nhớ của trang plugin, gửi lại qua bridge; không lưu password/session vào config.js, localStorage hay cookie trình duyệt. Refresh trang hoặc nạp lại plugin cần login admin lại. Khi phiên hết hạn hoặc backend restart, login lại qua modal; không tự lưu mật khẩu và không tự retry thao tác timeout. Logout hủy session phía backend. Session admin của bản web và plugin độc lập.
 
-Các link khác lấy từ `PM2_MONITOR_TARGETS_FILE` trong môi trường/`.env`, hoặc `config/pm2-targets.json` mặc định. File không có => chỉ tạo link dashboard của user hiện tại; có file => thêm các entry theo thứ tự `targets`. File sai schema/JSON => báo lỗi trước khi ghi plugin. Installer đọc file này nếu tồn tại kể cả dashboard chạy single-user; quy tắc single-user không đọc targets của backend vẫn giữ nguyên.
+Plugin xác minh `/api/info` trước khi gửi mật khẩu/thao tác: protocol, user Linux, UID và cấu hình cookie. Cổng trỏ sang dashboard của user khác sẽ báo lỗi. Bên ploi muốn thấy cả lamson thì cấu hình **backend ploi** thành multi-user và thêm lamson qua Manage targets như hướng dẫn ở trên. Installer chỉ kết nối một backend của user cài, không đọc/copy danh sách target hay credential. Thêm/sửa/xóa target áp dụng ngay qua backend, không cần cài lại plugin.
 
-Link mặc định dùng hostname bạn đang mở Cockpit và port đã chọn. Ví dụ vào Cockpit qua `https://server-ip:9090` thì ploi mở dashboard `http://server-ip:8877`. Các target `http://127.0.0.1:8888`, `http://localhost:8888` hoặc IPv6 loopback cũng được đổi sang hostname Cockpit, giữ nguyên scheme và port. URL của target ở host khác được giữ nguyên. `127.0.0.1` trong URL browser trỏ máy browser, không phải server ở xa. Nếu đi qua domain/reverse proxy/tunnel và port không truy cập trực tiếp được, cấu hình URL dashboard hiện tại bằng `--url`, và cấu hình `baseUrl` của target bằng địa chỉ truy cập được từ browser:
+Mặc định plugin kết nối `http://127.0.0.1:<PORT>` trên server. Có thể override endpoint bằng origin HTTP(S), không nhận path/query/fragment hoặc credentials trong URL:
 
 ```bash
+npm run cockpit:install -- --port 8888
 npm run cockpit:install -- --url https://dashboard.example.com/
-# Xem trước, không ghi file:
-npm run cockpit:install -- --dry-run
 ```
 
-Cài lại bằng lệnh trên sẽ cập nhật năm file plugin và danh sách link. Cấu hình được chụp tại thời điểm cài: đổi `.env` hoặc thêm/sửa/xóa target trên dashboard thì chạy lại installer để cập nhật link Cockpit. `--port`/`--url` chỉ ghi đè dashboard của user hiện tại, không đổi các link target.
+`--url` được truy cập **từ server Cockpit**, không còn là link browser mở tab mới. HTTPS kiểm tra chứng chỉ, không có tùy chọn bỏ kiểm tra TLS. Đổi port/endpoint hoặc cập nhật frontend thì chạy lại installer. Không cần reverse proxy chung với Cockpit để hiển thị dashboard qua bridge.
 
-Chỉ username và dữ liệu URL/port được đưa vào `config.js` của plugin; không chép `.env`, password, tên biến credential hay file targets vào thư mục Cockpit. Dashboard cần đang chạy và URL phải truy cập được từ browser. Mỗi user thấy link của mình và những target đã khai báo trong checkout của mình; việc có link không cấp quyền thao tác. Ẩn link theo user không chặn truy cập URL trực tiếp: status/log của dashboard vẫn public theo mô hình đã chọn.
+Chart.js 4.4.8 và giấy phép MIT được vendored trong `cockpit/pm2monitor/vendor/`; plugin dùng font hệ thống, không gọi CDN. CSP chỉ cho script cục bộ; cho phép inline style để giữ layout và cập nhật đồ thị/progress hiện có. Các file plugin là tài nguyên public, không chép `.env`, ADMIN_PASSWORD, SESSION_SECRET hay targets JSON.
+
+| Hiện tượng | Cách xử lý |
+| --- | --- |
+| Cannot reach dashboard backend | Kiểm tra dashboard đang chạy, `curl --fail http://127.0.0.1:<PORT>/api/info`; nếu bind vào địa chỉ khác, cấu hình endpoint phù hợp. |
+| Dashboard identity does not match | Kiểm tra port và user từ `/api/info`; chạy installer bằng đúng user đăng nhập Cockpit. |
+| Logout báo Invalid dashboard response | Cập nhật/restart backend để có endpoint POST logout mới. |
+| Menu/giao diện vẫn là bản link cũ | Chạy lại installer, refresh hoặc logout/login Cockpit; kiểm tra `cockpit-bridge --packages` và package global cùng tên nếu có. |
+| Thay đổi code web nhưng Cockpit vẫn cũ | Chạy lại installer để cập nhật bản sao asset. |
+| Backend đổi target | Không cần cài lại plugin; refresh dữ liệu hoặc mở lại trang. |
+
+Gỡ plugin riêng của user (chỉ xóa package, backend tiếp tục chạy):
+
+```bash
+rm -r -- "${XDG_DATA_HOME:-$HOME/.local/share}/cockpit/pm2monitor"
+```
+
+Các file `link.js` cũ nếu còn trong thư mục cài không được manifest/index mới sử dụng. Cài lại code trên main sẽ phục hồi bản link cũ; chưa merge nhánh tính năng nếu muốn giữ main nguyên trạng.
+
+Kiểm tra tự động:
+
+```bash
+npm test
+# Cần Playwright có sẵn trong môi trường phát triển:
+npm run test:browser
+npm run test:cockpit
+# Có thể dùng module Playwright đã cài ở nơi khác:
+PLAYWRIGHT_MODULE=/absolute/path/to/playwright npm run test:cockpit
+```
+
+Test Cockpit browser chạy Chromium với iframe, CSP và HTTP bridge **mô phỏng**, gọi backend test thật với adapter PM2 giả. Nó không thay thế kiểm tra trên Cockpit thật. Khi áp dụng cần kiểm tra menu, đồ thị, log, login/logout, start/stop/restart với process thử riêng, cả ploi multi-user và lamson single-user; không thao tác app production để thử nghiệm.
 
 ## Biểu đồ và bộ nhớ
 

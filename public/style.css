@@ -1,0 +1,55 @@
+:root { --bg: #f8fafc; --card: #ffffff; --primary: #4776E6; --text: #1e293b; --border: #e2e8f0; --danger: #ff7675; --success: #00b894; --warning: #fdcb6e; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Poppins', sans-serif; background: var(--bg); color: var(--text); padding: 20px; padding-bottom: 80px; }
+
+        /* Layout */
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .server-pill { background: #fff; border: 1px solid var(--border); border-radius: 15px; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .global-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 15px; margin-bottom: 25px; }
+        .monitor-card { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 15px; position: relative; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); overflow: hidden; }
+        .mon-label { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; }
+        .mon-val { font-size: 1.2rem; font-weight: 700; margin: 8px 0; display: block; }
+
+        /* Components */
+        .progress-bg { background: #f1f5f9; height: 8px; border-radius: 10px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; width: 0%; transition: 0.5s; border-radius: 10px; }
+        .app-card { background: #fff; border-radius: 20px; padding: 20px; border: 1px solid var(--border); margin-bottom: 15px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .app-stats-bar { background: #f8fafc; border-radius: 12px; padding: 10px 15px; display: flex; gap: 15px; font-size: 12px; color: #64748b; font-weight: 600; margin-bottom: 15px; }
+        .online-badge { font-size: 10px; font-weight: 800; padding: 4px 10px; border-radius: 8px; text-transform: uppercase; }
+
+        /* Buttons */
+        .btn-group { display: flex; gap: 8px; }
+        .btn { flex: 1; border: none; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 12px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn-stop { background: var(--danger); color: white; }
+        .btn-start { background: var(--success); color: white; }
+        .btn-restart { background: #dfe6e9; color: #475569; }
+        .btn-info { background: #74b9ff; color: white; }
+        .btn-disabled { background: #f1f5f9; color: #cbd5e1; cursor: not-allowed; }
+
+        /* Modals */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 20px; }
+        .modal-box { background: #fff; border-radius: 25px; padding: 25px; width: 100%; max-width: 500px; position: relative; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .console { background: #1e293b; color: #10b981; padding: 15px; border-radius: 15px; height: 180px; overflow-y: auto; font-family: monospace; font-size: 11px; margin-top: 15px; white-space: pre-wrap; border: 1px solid #334155; }
+
+        .login-box { width: 320px; text-align: center; }
+        .login-box input { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; margin: 15px 0; outline: none; text-align: center; }
+        [hidden] { display: none !important; }
+        .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 15px; }
+        .toolbar .btn { flex: initial; }
+        select, .target-form input { padding: 10px; border: 1px solid var(--border); border-radius: 10px; font: inherit; width: 100%; }
+        .toolbar select { width: auto; max-width: 60%; }
+        .notice { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 12px; font-size: 12px; }
+        .error { color: #b42318; }
+        .user-label { font-size: 11px; color: #64748b; margin-top: 4px; }
+        .target-form { display: grid; gap: 12px; margin-top: 15px; }
+        .target-form label { font-size: 12px; display: grid; gap: 4px; }
+        .target-row { padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .target-row .btn-group { margin-top: 8px; }
+        .target-dialog { max-height: 90vh; overflow-y: auto; }
+        button:disabled { opacity: .55; cursor: not-allowed; }
+        .card-header { gap: 12px; }
+        .card-header > div { min-width: 0; overflow-wrap: anywhere; }
+        .online-badge { flex-shrink: 0; }
+        .target-row { overflow-wrap: anywhere; }

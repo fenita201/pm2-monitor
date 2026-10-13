@@ -48,10 +48,14 @@ async function createApp(options = {}) {
         await new Promise((resolve, reject) => req.session.save(err => err ? reject(err) : resolve()));
         res.json({ success: true });
     }));
-    app.get('/auth/logout', route(async (req, res) => {
+    const logout = route(async (req, res) => {
         await new Promise((resolve, reject) => req.session.destroy(err => err ? reject(err) : resolve()));
-        res.clearCookie(sessionCookie); res.redirect('/');
-    }));
+        res.clearCookie(sessionCookie);
+        if (req.method === 'POST') res.json({ success: true });
+        else res.redirect('/');
+    });
+    app.get('/auth/logout', logout);
+    app.post('/auth/logout', logout);
     app.get('/api/info', (req, res) => res.json({ protocolVersion: 1, mode: config.mode, user: config.user, uid: config.uid, sessionCookie }));
     app.get('/api/status', route(async (req, res) => {
         const [status, serverStats] = await Promise.all([manager.status(), stats()]);

@@ -17,6 +17,7 @@ function button(text, className, action, disabled = false) {
 }
 function notice(id, text) { $(id).textContent = text; $(id).hidden = !text; }
 async function request(url, options = {}) {
+    if (window.pm2MonitorTransport) return window.pm2MonitorTransport.request(url, options);
     const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(30000) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.message || 'Request failed');
@@ -49,7 +50,7 @@ function renderStats(stats) {
 }
 function renderAuth() {
     $('authArea').replaceChildren(state.isAdmin
-        ? button('Logout', 'btn-stop', async () => { try { await fetch('/auth/logout'); closeInfo(); closeTargets(); await fetchData(); } catch (err) { notice('pageError', err.message); } })
+        ? button('Logout', 'btn-stop', async () => { try { await request('/auth/logout', { method: 'POST', body: '{}' }); closeInfo(); closeTargets(); await fetchData(); } catch (err) { notice('pageError', err.message); } })
         : button('Login', 'btn-restart', () => { $('loginModal').style.display = 'flex'; $('adminPass').focus(); }));
     $('toolbar').hidden = state.mode !== 'multi-user';
     $('manageTargets').hidden = !state.isAdmin;
@@ -110,13 +111,16 @@ async function fetchData() {
                 if (updated) { active = updated; renderModalActions(); updateDetailChart(); }
                 else closeInfo();
             }
-        } catch (err) { notice('pageError', err.message); }
+        } catch (err) {
+            notice('pageError', err.message);
+            if (window.pm2MonitorTransport && !state.processes.length) $('app-list').textContent = '';
+        }
     })().finally(() => { polling = null; });
     return polling;
 }
 async function poll() {
     const started = performance.now();
-    if (!document.hidden) await fetchData();
+    if (!document.hidden && (!window.cockpit || !window.cockpit.hidden)) await fetchData();
     setTimeout(poll, Math.max(0, 2000 - (performance.now() - started)));
 }
 async function submitLogin() {
@@ -158,7 +162,7 @@ function updateDetailChart() {
     detChart.data.datasets[1].data = histories.get(key(active)).c; detChart.update();
 }
 async function fetchLogs(p, generation) {
-    if (document.hidden) {
+    if (document.hidden || window.cockpit?.hidden) {
         if (generation === logGeneration && active) logTimer = setTimeout(() => fetchLogs(p, generation), 3000);
         return;
     }
@@ -235,5 +239,5 @@ $('manageTargets').addEventListener('click', openTargets);
 $('closeTargets').addEventListener('click', closeTargets);
 $('resetTarget').addEventListener('click', () => { if (!targetSaving) resetTarget(); });
 $('targetForm').addEventListener('submit', saveTarget);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) fetchData(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && (!window.cockpit || !window.cockpit.hidden)) fetchData(); });
 initCharts(); poll();

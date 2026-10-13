@@ -3,11 +3,9 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { createRequire } = require('node:module');
 const { start, fakeLocal, root } = require('./helpers');
 const { chromium } = process.env.PLAYWRIGHT_MODULE ? require(process.env.PLAYWRIGHT_MODULE) : require('playwright');
-const chartRequire = process.env.PLAYWRIGHT_MODULE ? createRequire(path.resolve(process.env.PLAYWRIGHT_MODULE, 'package.json')) : require;
-const chartFile = path.join(path.dirname(chartRequire.resolve('chart.js')), 'chart.umd.js');
+const chartFile = path.join(root, 'cockpit/pm2monitor/vendor/chart.umd.js');
 async function main() {
     const cleanup = [], context = { after: fn => cleanup.push(fn) };
     let browser;
