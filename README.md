@@ -13,6 +13,39 @@ Dashboard nhẹ dùng Express + HTML/JavaScript, hỗ trợ một user hoặc go
 
 ## Cài đặt và nâng cấp
 
+### Script tương tác
+
+Chạy các script dưới đây bằng đúng Linux user của dashboard, không dùng sudo. Script tự chuyển về thư mục repo nên có thể gọi bằng đường dẫn tuyệt đối từ thư mục khác. Nạp NVM/chọn Node >= 20.19 trước; script dùng Node đang có trong PATH. Nếu thiếu dependency cần thiết, script tự chạy `npm ci --omit=dev`.
+
+```bash
+./setup.sh
+./start.sh
+./reload.sh
+./stop.sh
+./install-cockpit-plugin.sh
+```
+
+| Script | Hành vi |
+| --- | --- |
+| `setup.sh` | Nếu đã có `.env`: Enter để skip/giữ nguyên; nhập `no` để tạo mới. Nếu chưa có: tạo mới ngay. Enter tại từng câu hỏi lấy default. |
+| `start.sh` | Chạy `setup.sh` trước; chọn `1` hoặc Enter để chạy foreground, `2` để start/reload riêng `pm2-dashboard` qua ecosystem. |
+| `reload.sh` | Reload dashboard từ ecosystem với `--update-env`; yêu cầu đã có `.env` và process PM2 đã được start. |
+| `stop.sh` | Chọn `1` hoặc Enter để stop `pm2-dashboard`; `2` để delete/remove process này khỏi PM2. Không xóa checkout, `.env` hoặc plugin Cockpit. |
+| `install-cockpit-plugin.sh` | Cài plugin Cockpit cho user chạy script; nhận các tham số `--port`, `--url`, `--dry-run` như installer Node. |
+
+Khi tạo `.env`, mặc định là `PORT=8877`, HOST giữ cách bind mặc định của app, mode **1 = single-user** (chọn **2 = multi-user**), `ADMIN_PASSWORD=admin123`, và `SESSION_SECRET` ngẫu nhiên mới. Password/secret được nhập ẩn; Enter dùng default. Multi-user hỏi thêm đường dẫn targets, default `./config/pm2-targets.json`; thêm target qua Manage targets sau khi app chạy. File mới được ghi atomically với quyền `0600`; chọn `no` tạo mới sẽ thay toàn bộ cấu hình cũ, bao gồm các biến bổ sung đã tự khai báo.
+
+Các script không source/eval `.env` như shell command. Lệnh PM2 dùng cùng `PM2_HOME` với backend, kể cả override trong `.env`; biến môi trường đang export vẫn ưu tiên hơn `.env`. PM2 lấy từ PATH, hoặc dùng bản local trong `node_modules/.bin/pm2`. Script không tự `pm2 save`, không cấu hình startup service và không thao tác process khác. Với foreground, dùng Ctrl+C để dừng; `stop.sh` dành cho bản chạy bằng PM2.
+
+```bash
+# Chỉ xem trước việc cài plugin:
+./install-cockpit-plugin.sh --dry-run
+# Override port backend cho plugin:
+./install-cockpit-plugin.sh --port 8888
+```
+
+### Cài thủ công
+
 Trong shell của đúng Linux user, với NVM/Node đã được nạp:
 
 ```bash
